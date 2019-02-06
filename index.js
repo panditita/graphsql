@@ -1,4 +1,5 @@
 const context = require('./context');
+const { ObjectId } = require('mongodb');
 
 const { ApolloServer, gql } = require('apollo-server');
 
@@ -63,6 +64,7 @@ const typeDefs = gql`
 		title: String
 		author: Author
 		collection: Collection
+		_id: String
 	}
 
 	type Author {
@@ -75,10 +77,16 @@ const typeDefs = gql`
 
 	# The "Query" type is the root of all GraphQL queries.
 	# (A "Mutation" type will be covered later on.)
+
 	type Query {
 		books: [Book]
+		book(_id: String): Book
 		authors: [Author]
 		collections: [Collection]
+	}
+
+	type Mutation {
+		addBook(title: String!, authorId: Int!): Book
 	}
 `;
 
@@ -87,8 +95,19 @@ const typeDefs = gql`
 const resolvers = {
 	Query: {
 		books: async (parent, args, context) => await context.mongo.collection('books').find().toArray(),
+		book: async (parent, args, context) => {
+			const { _id } = args;
+			return await context.mongo.collection('books').findOne(ObjectId(_id));
+		},
 		authors: () => authors,
 		collections: () => collections
+	},
+	Mutation: {
+		addBook: async (parent, args, context) => {
+			const { title, authorId } = args;
+			return await context.mongo.collection('books').insertOne(args);
+			//Add to databse
+		}
 	},
 	Book: {
 		author: (parent) => authors.find((author) => author.id === parent.authorId),
